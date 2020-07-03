@@ -13,6 +13,7 @@
 #    limitations under the License.
 
 from multiprocessing.pool import Pool
+from time import time
 
 import numpy as np
 import torch
@@ -54,6 +55,7 @@ class nnUNetTrainerV2_fullEvals(nnUNetTrainerV2):
         does. I disabled it here because this eats up a lot of computation time
 
         """
+        validation_start = time()
 
         current_mode = self.network.training
         self.network.eval()
@@ -100,7 +102,7 @@ class nnUNetTrainerV2_fullEvals(nnUNetTrainerV2):
                     (save_softmax and not isfile(join(output_folder, fname + ".npz"))):
                 data = np.load(self.dataset[k]['data_file'])['data']
 
-                print(k, data.shape)
+                #print(k, data.shape)
 
                 softmax_pred = self.predict_preprocessed_data_return_seg_and_softmax(
                     data[:-1], do_mirroring, mirror_axes, use_sliding_window, step_size, use_gaussian,
@@ -118,7 +120,7 @@ class nnUNetTrainerV2_fullEvals(nnUNetTrainerV2):
                                                          ((softmax_pred, join(output_folder, fname + ".nii.gz"),
                                                            properties, interpolation_order, None, None, None,
                                                            softmax_fname, None, force_separate_z,
-                                                           interpolation_order_z),
+                                                           interpolation_order_z, False),
                                                           )
                                                          )
                                )
@@ -134,13 +136,16 @@ class nnUNetTrainerV2_fullEvals(nnUNetTrainerV2):
         csv_file = np.loadtxt(join(output_folder, 'summary.csv'), skiprows=1, dtype=str, delimiter=',')[:, 1:]
 
         # these are the values that are compute with np.nanmean aggregation
-        whole, core, enhancing = csv_file[-3, :].astype(float)
+        whole, core, enhancing = csv_file[-4, :].astype(float)
 
         # do some cleanup
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
         self.network.train(current_mode)
+        validation_end = time()
+        self.print_to_log_file('Running the validation took %f seconds' % (validation_end - validation_start))
+        self.print_to_log_file('(the time needed for validation is included in the total epoch time!)')
 
         return whole, core, enhancing
 
@@ -154,7 +159,7 @@ class nnUNetTrainerV2_fullEvals(nnUNetTrainerV2):
                                                    save_softmax=False,
                                                    use_gaussian=True, overwrite=True,
                                                    validation_folder_name='validation_after_ep_%04.0d' % self.epoch,
-                                                   debug=False, all_in_gpu=False)
+                                                   debug=False, all_in_gpu=True)
 
             here = np.mean((whole, core, enhancing))
 

@@ -119,6 +119,10 @@ class NetworkTrainer(object):
         self.log_file = None
         self.deterministic = deterministic
 
+        self.use_progress_bar = False
+        if 'nnunet_use_progress_bar' in os.environ.keys():
+            self.use_progress_bar = bool(int(os.environ['nnunet_use_progress_bar']))
+
     @abstractmethod
     def initialize(self, training=True):
         """
@@ -427,13 +431,18 @@ class NetworkTrainer(object):
             # train one epoch
             self.network.train()
 
-            with trange(self.num_batches_per_epoch) as tbar:
-                for b in tbar:
-                    tbar.set_description("Epoch {}/{}".format(self.epoch+1, self.max_num_epochs))
+            if self.use_progress_bar:
+                with trange(self.num_batches_per_epoch) as tbar:
+                    for b in tbar:
+                        tbar.set_description("Epoch {}/{}".format(self.epoch+1, self.max_num_epochs))
 
+                        l = self.run_iteration(self.tr_gen, True)
+
+                        tbar.set_postfix(loss=l)
+                        train_losses_epoch.append(l)
+            else:
+                for _ in range(self.num_batches_per_epoch):
                     l = self.run_iteration(self.tr_gen, True)
-
-                    tbar.set_postfix(loss=l)
                     train_losses_epoch.append(l)
 
             self.all_tr_losses.append(np.mean(train_losses_epoch))
@@ -459,11 +468,12 @@ class NetworkTrainer(object):
                     self.all_val_losses_tr_mode.append(np.mean(val_losses))
                     self.print_to_log_file("validation loss (train=True): %.4f" % self.all_val_losses_tr_mode[-1])
 
-            epoch_end_time = time()
-
             self.update_train_loss_MA()  # needed for lr scheduler and stopping of training
 
             continue_training = self.on_epoch_end()
+
+            epoch_end_time = time()
+
             if not continue_training:
                 # allows for early stopping
                 break

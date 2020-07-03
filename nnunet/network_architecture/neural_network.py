@@ -15,7 +15,6 @@
 
 import numpy as np
 from batchgenerators.augmentations.utils import pad_nd_image
-from nnunet.utilities.tensor_utilities import flip
 from nnunet.utilities.to_torch import to_cuda, maybe_to_torch
 from torch import nn
 import torch
@@ -320,7 +319,7 @@ class SegmentationNetwork(NeuralNetwork):
                 # If we run the inference in GPU only (meaning all tensors are allocated on the GPU, this reduces
                 # CPU-GPU communication but required more GPU memory) we need to preallocate a few things on GPU
 
-                if use_gaussian:
+                if use_gaussian and num_tiles > 1:
                     # half precision for the outputs should be good enough. If the outputs here are half, the
                     # gaussian_importance_map should be as well
                     gaussian_importance_map = gaussian_importance_map.half()
@@ -344,7 +343,7 @@ class SegmentationNetwork(NeuralNetwork):
                 aggregated_nb_of_predictions = torch.zeros([self.num_classes] + list(data.shape[1:]), dtype=torch.half,
                                                            device=self.get_device())
             else:
-                if use_gaussian:
+                if use_gaussian and num_tiles > 1:
                     add_for_nb_of_preds = self._gaussian_3d
                 else:
                     add_for_nb_of_preds = np.ones(data.shape[1:], dtype=np.float32)
@@ -510,32 +509,32 @@ class SegmentationNetwork(NeuralNetwork):
                     result_torch += 1 / num_results * pred
 
                 if m == 1 and (2 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(x, 4)))
-                    result_torch += 1 / num_results * flip(pred, 4)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (4, ))))
+                    result_torch += 1 / num_results * torch.flip(pred, (4,))
 
                 if m == 2 and (1 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(x, 3)))
-                    result_torch += 1 / num_results * flip(pred, 3)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (3, ))))
+                    result_torch += 1 / num_results * torch.flip(pred, (3,))
 
                 if m == 3 and (2 in mirror_axes) and (1 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(flip(x, 4), 3)))
-                    result_torch += 1 / num_results * flip(flip(pred, 4), 3)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (4, 3))))
+                    result_torch += 1 / num_results * torch.flip(pred, (4, 3))
 
                 if m == 4 and (0 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(x, 2)))
-                    result_torch += 1 / num_results * flip(pred, 2)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (2, ))))
+                    result_torch += 1 / num_results * torch.flip(pred, (2,))
 
                 if m == 5 and (0 in mirror_axes) and (2 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(flip(x, 4), 2)))
-                    result_torch += 1 / num_results * flip(flip(pred, 4), 2)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (4, 2))))
+                    result_torch += 1 / num_results * torch.flip(pred, (4, 2))
 
                 if m == 6 and (0 in mirror_axes) and (1 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(flip(x, 3), 2)))
-                    result_torch += 1 / num_results * flip(flip(pred, 3), 2)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (3, 2))))
+                    result_torch += 1 / num_results * torch.flip(pred, (3, 2))
 
                 if m == 7 and (0 in mirror_axes) and (1 in mirror_axes) and (2 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(flip(flip(x, 3), 2), 4)))
-                    result_torch += 1 / num_results * flip(flip(flip(pred, 3), 2), 4)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (4, 3, 2))))
+                    result_torch += 1 / num_results * torch.flip(pred, (4, 3, 2))
 
             if mult is not None:
                 result_torch[:, :] *= mult
@@ -570,16 +569,16 @@ class SegmentationNetwork(NeuralNetwork):
                     result_torch += 1 / num_results * pred
 
                 if m == 1 and (1 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(x, 3)))
-                    result_torch += 1 / num_results * flip(pred, 3)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (3, ))))
+                    result_torch += 1 / num_results * torch.flip(pred, (3, ))
 
                 if m == 2 and (0 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(x, 2)))
-                    result_torch += 1 / num_results * flip(pred, 2)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (2, ))))
+                    result_torch += 1 / num_results * torch.flip(pred, (2, ))
 
                 if m == 3 and (0 in mirror_axes) and (1 in mirror_axes):
-                    pred = self.inference_apply_nonlin(self(flip(flip(x, 3), 2)))
-                    result_torch += 1 / num_results * flip(flip(pred, 3), 2)
+                    pred = self.inference_apply_nonlin(self(torch.flip(x, (3, 2))))
+                    result_torch += 1 / num_results * torch.flip(pred, (3, 2))
 
         if mult is not None:
             result_torch[:, :] *= mult
@@ -639,7 +638,7 @@ class SegmentationNetwork(NeuralNetwork):
                 # If we run the inference in GPU only (meaning all tensors are allocated on the GPU, this reduces
                 # CPU-GPU communication but required more GPU memory) we need to preallocate a few things on GPU
 
-                if use_gaussian:
+                if use_gaussian and num_tiles > 1:
                     # half precision for the outputs should be good enough. If the outputs here are half, the
                     # gaussian_importance_map should be as well
                     gaussian_importance_map = gaussian_importance_map.half()
@@ -663,7 +662,7 @@ class SegmentationNetwork(NeuralNetwork):
                 aggregated_nb_of_predictions = torch.zeros([self.num_classes] + list(data.shape[1:]), dtype=torch.half,
                                                            device=self.get_device())
             else:
-                if use_gaussian:
+                if use_gaussian and num_tiles > 1:
                     add_for_nb_of_preds = self._gaussian_2d
                 else:
                     add_for_nb_of_preds = np.ones(data.shape[1:], dtype=np.float32)
