@@ -362,7 +362,7 @@ class ExperimentPlanner(object):
         num_modalities = len(list(modalities.keys()))
 
         for i in range(num_modalities):
-            if modalities[i] == "CT":
+            if modalities[i] == "CT" or modalities[i] == 'ct':
                 schemes[i] = "CT"
             else:
                 schemes[i] = "nonCT"
@@ -422,8 +422,8 @@ class ExperimentPlanner(object):
     def run_preprocessing(self, num_threads):
         if os.path.isdir(join(self.preprocessed_output_folder, "gt_segmentations")):
             shutil.rmtree(join(self.preprocessed_output_folder, "gt_segmentations"))
-        shutil.copytree(join(self.folder_with_cropped_data, "gt_segmentations"), join(self.preprocessed_output_folder,
-                                                                                      "gt_segmentations"))
+        shutil.copytree(join(self.folder_with_cropped_data, "gt_segmentations"),
+                        join(self.preprocessed_output_folder, "gt_segmentations"))
         normalization_schemes = self.plans['normalization_schemes']
         use_nonzero_mask_for_normalization = self.plans['use_mask_for_norm']
         intensityproperties = self.plans['dataset_properties']['intensityproperties']
